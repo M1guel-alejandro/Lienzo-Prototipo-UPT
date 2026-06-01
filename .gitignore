@@ -1,0 +1,19 @@
+# Ignorar archivos de configuración con claves secretas
+config.php
+key.txt
+
+# Ignorar archivos subidos localmente
+uploads/
+
+# Ignorar logs y archivos temporales
+*.log
+*.tmp
+*.cache
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar archivos de editor/IDE
+.vscode/
+.idea/
