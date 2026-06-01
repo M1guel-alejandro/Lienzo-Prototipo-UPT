@@ -1,0 +1,112 @@
+<?php
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'lienzo');
+define('DB_USER', 'lienzo');
+define('DB_PASS', 'Lienzo123!');
+$pixKey = getenv('PIXA_API_KEY') ?: '';
+if (!$pixKey && is_file(__DIR__ . '/key.txt')) {
+    $pixKey = trim(file_get_contents(__DIR__ . '/key.txt'));
+}
+define('PIX_API_KEY', $pixKey);
+define('UPLOAD_DIR', __DIR__ . '/uploads');
+define('MAX_FILE_SIZE', 25 * 1024 * 1024);
+define('ALLOWED_EXT', ['png', 'jpg', 'jpeg', 'webp', 'gif']);
+define('DEFAULT_CREDITS', 20);
+define('DAILY_LIMIT', 5);
+
+function db(): PDO {
+    static $pdo = null;
+    if ($pdo === null) {
+        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+    }
+    return $pdo;
+}
+
+function json_response(array $data, int $code = 200): void {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data);
+    exit;
+}
+
+function get_json_input(): array {
+    $raw = file_get_contents('php://input');
+    return json_decode($raw, true) ?: [];
+}
+
+function current_user_id(): ?int {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    return $_SESSION['user_id'] ?? null;
+}
+
+function require_login(): array {
+    $uid = current_user_id();
+    if (!$uid) json_response(['error' => 'Necesitas iniciar sesión.'], 401);
+    $stmt = db()->prepare('SELECT * FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    $user = $stmt->fetch();
+    if (!$user) json_response(['error' => 'Usuario no encontrado.'], 401);
+    return $user;
+}
+
+function require_admin(): array {
+    $user = require_login();
+    if ($user['role'] !== 'admin') json_response(['error' => 'Acceso denegado.'], 403);
+    return $user;
+}
+
+function allowed_file(string $filename): bool {
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    return in_array($ext, ALLOWED_EXT);
+}
+
+function validate_password(string $password): string {
+    if (strlen($password) < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+    if (!preg_match('/[A-Z]/', $password)) return 'La contraseña debe contener al menos una letra mayúscula.';
+    if (!preg_match('/[a-z]/', $password)) return 'La contraseña debe contener al menos una letra minúscula.';
+    if (!preg_match('/\d/', $password)) return 'La contraseña debe contener al menos un número.';
+    return '';
+}
+
+function reset_daily_if_needed(array &$user): void {
+    $today = date('Y-m-d');
+    if ($user['daily_count_date'] !== $today) {
+        $stmt = db()->prepare('UPDATE users SET daily_count = 0, daily_count_date = ? WHERE id = ?');
+        $stmt->execute([$today, $user['id']]);
+        $user['daily_count'] = 0;
+        $user['daily_count_date'] = $today;
+    }
+}
+
+function curl_post(string $url, array $data, array $headers, int $timeout = 60): array {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($data),
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_CONNECTTIMEOUT => 10,
+    ]);
+    $response = curl_exec($ch);
+    if ($response === false) {
+        $error = curl_error($ch);
+        $errno = curl_errno($ch);
+        curl_close($ch);
+        return ['error' => "cURL error ($errno): $error", 'code' => 502];
+    }
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    if ($error) return ['error' => "Request failed: $error", 'code' => 502];
+    $json = json_decode($response, true);
+    if ($json === null && $response !== '') {
+        return ['error' => 'Invalid JSON from API', 'code' => 502];
+    }
+    return ['data' => $json, 'code' => $httpCode];
+}
