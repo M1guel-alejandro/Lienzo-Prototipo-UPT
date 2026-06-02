@@ -22,9 +22,10 @@ define('DAILY_LIMIT', 5);
 function db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        // Si hay un puerto en el entorno, lo concatenamos al DSN
         global $dbPort;
         $hostStr = DB_HOST;
+        
+        // Si hay un puerto en el entorno (como el 23949 de Aiven), lo concatenamos con ;port=
         if (!empty($dbPort)) {
             $hostStr .= ';port=' . $dbPort;
         }
