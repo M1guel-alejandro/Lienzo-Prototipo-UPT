@@ -127,3 +127,4 @@ Las imagenes subidas se alojan localmente en `uploads/`. Para que la API de Pixe
 3. **Desplegar en un servidor** - Subir el proyecto a un hosting con dominio publico
 
 Para prototipos locales, se recomienda usar imagenes con URL publica directamente en el formulario.
+# Lienzo-Prototipo-UPT
