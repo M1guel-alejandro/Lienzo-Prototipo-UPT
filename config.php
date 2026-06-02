@@ -1,8 +1,13 @@
 <?php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'lienzo');
-define('DB_USER', 'lienzo');
-define('DB_PASS', 'Lienzo123!');
+// Configuración dinámica de la Base de Datos (Render / Local)
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_NAME', getenv('DB_NAME') ?: 'lienzo');
+define('DB_USER', getenv('DB_USER') ?: 'lienzo');
+define('DB_PASS', getenv('DB_PASS') ?: 'Lienzo123!');
+
+// Verificar si se configuró un puerto específico (como el 23949 de Aiven)
+$dbPort = getenv('DB_PORT');
+
 $pixKey = getenv('PIXA_API_KEY') ?: '';
 if (!$pixKey && is_file(__DIR__ . '/key.txt')) {
     $pixKey = trim(file_get_contents(__DIR__ . '/key.txt'));
@@ -17,7 +22,14 @@ define('DAILY_LIMIT', 5);
 function db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+        // Si hay un puerto en el entorno, lo concatenamos al DSN
+        global $dbPort;
+        $hostStr = DB_HOST;
+        if (!empty($dbPort)) {
+            $hostStr .= ';port=' . $dbPort;
+        }
+        
+        $dsn = 'mysql:host=' . $hostStr . ';dbname=' . DB_NAME . ';charset=utf8mb4';
         $pdo = new PDO($dsn, DB_USER, DB_PASS, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
