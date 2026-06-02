@@ -1,10 +1,11 @@
 <?php
-/**
- * Router para el servidor PHP built-in.
- * Uso: php -S localhost:8000 router.php
- * Esto permite que el proyecto funcione en Windows sin Apache ni .htaccess.
- */
+// 1. Enviar la política de seguridad relajada inmediatamente
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
+
+// 2. Cargar la configuración global
+require_once __DIR__ . '/config.php';
+
+// ... (aquí abajo sigue el resto de tu lógica de rutas normales)
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // Servir archivos estáticos directamente
