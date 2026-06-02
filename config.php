@@ -29,28 +29,22 @@ define('DAILY_LIMIT', 5);
 function db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        global $dbPort;
-        $hostStr = DB_HOST;
-        
-        if (!empty($dbPort)) {
-            $hostStr .= ';port=' . $dbPort;
-        }
-        
-        $dsn = 'mysql:host=' . $hostStr . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-        
-        // Opciones de conexión PDO
+        $sqliteFile = __DIR__ . '/database.sqlite';
+        $dsn = 'sqlite:' . $sqliteFile;
+
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
 
-        // SI ESTAMOS EN PRODUCCIÓN (Render), le exigimos SSL a PDO para que Aiven lo acepte
-        if (!empty($dbPort)) {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = true; 
-            // Al ponerlo en true, PHP usará los certificados válidos nativos del sistema en Render
+        // Aseguramos que el directorio es escribible y el archivo existe (PDO lo creará si no existe)
+        try {
+            $pdo = new PDO($dsn, null, null, $options);
+            // Habilitar claves foráneas en SQLite
+            $pdo->exec('PRAGMA foreign_keys = ON;');
+        } catch (Throwable $e) {
+            throw new RuntimeException('No se pudo conectar a la base de datos SQLite: ' . $e->getMessage());
         }
-        
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     }
     return $pdo;
 }
