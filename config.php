@@ -1,4 +1,10 @@
 <?php
+// Configuración estricta de cookies de sesión para producción en Render
+if (getenv('DB_PORT')) { // Si estamos en Render
+    ini_set('session.cookie_secure', '1');     // Obliga a viajar solo por HTTPS
+    ini_set('session.cookie_httponly', '1');   // Protege la cookie de ataques JS
+    ini_set('session.cookie_samesite', 'Lax'); // Permite navegación segura entre páginas
+}
 // Configuración dinámica de la Base de Datos (Render / Local)
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_NAME', getenv('DB_NAME') ?: 'lienzo');
@@ -60,7 +66,18 @@ function get_json_input(): array {
 }
 
 function current_user_id(): ?int {
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    if (session_status() === PHP_SESSION_NONE) {
+        // Si estamos en Render, aplicamos los parámetros de seguridad antes de iniciar
+        if (getenv('DB_PORT')) {
+            session_start([
+                'cookie_secure' => true,
+                'cookie_httponly' => true,
+                'cookie_samesite' => 'Lax'
+            ]);
+        } else {
+            session_start();
+        }
+    }
     return $_SESSION['user_id'] ?? null;
 }
 
