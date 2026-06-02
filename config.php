@@ -25,20 +25,28 @@ function db(): PDO {
         global $dbPort;
         $hostStr = DB_HOST;
         
-        // Si hay un puerto en el entorno (como el 23949 de Aiven), lo concatenamos con ;port=
         if (!empty($dbPort)) {
             $hostStr .= ';port=' . $dbPort;
         }
         
         $dsn = 'mysql:host=' . $hostStr . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        
+        // Opciones de conexión PDO
+        $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
+        ];
+
+        // SI ESTAMOS EN PRODUCCIÓN (Render), le exigimos SSL a PDO para que Aiven lo acepte
+        if (!empty($dbPort)) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = true; 
+            // Al ponerlo en true, PHP usará los certificados válidos nativos del sistema en Render
+        }
+        
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     }
     return $pdo;
 }
-
 function json_response(array $data, int $code = 200): void {
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
