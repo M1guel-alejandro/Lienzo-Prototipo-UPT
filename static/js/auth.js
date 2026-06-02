@@ -36,6 +36,7 @@ async function postJson(url, payload) {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify(payload),
   });
 
@@ -71,7 +72,7 @@ if (loginForm) {
     try {
       const data = await postJson('/api/auth/login', { email, password });
       loginSuccess.textContent = data.message;
-      window.location.href = '/';
+        window.location.href = '/dashboard';
     } catch (error) {
       loginError.textContent = error.message;
     }
