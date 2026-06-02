@@ -12,6 +12,10 @@ const signupConfirm = document.getElementById('signupConfirm');
 const signupError = document.getElementById('signupError');
 const signupSuccess = document.getElementById('signupSuccess');
 
+// Si tu backend está en otro dominio (Aiven), configura `window.API_BASE` en el HTML
+// por ejemplo: <script>window.API_BASE = 'https://api.tu-dominio.com';</script>
+const API_BASE = window.API_BASE || '';
+
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -33,10 +37,12 @@ function validatePassword(password) {
 }
 
 async function postJson(url, payload) {
-  const response = await fetch(url, {
+  const fullUrl = url.match(/^https?:\/\//) ? url : (API_BASE.replace(/\/$/, '') + url);
+  const response = await fetch(fullUrl, {
     method: 'POST',
+    mode: 'cors',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
     body: JSON.stringify(payload),
   });
 
@@ -47,77 +53,93 @@ async function postJson(url, payload) {
   return data;
 }
 
-if (loginForm) {
-  loginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    loginError.textContent = '';
-    loginSuccess.textContent = '';
+document.addEventListener('DOMContentLoaded', () => {
+  const loginFormEl = document.getElementById('loginForm');
+  const loginEmailEl = document.getElementById('loginEmail');
+  const loginPasswordEl = document.getElementById('loginPassword');
+  const loginErrorEl = document.getElementById('loginError');
+  const loginSuccessEl = document.getElementById('loginSuccess');
 
-    const email = loginEmail.value.trim();
-    const password = loginPassword.value.trim();
+  if (loginFormEl) {
+    loginFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      loginErrorEl.textContent = '';
+      loginSuccessEl.textContent = '';
 
-    if (!email || !password) {
-      loginError.textContent = 'Completa todos los campos para iniciar sesión.';
-      return;
-    }
-    if (email.length > 50 || password.length > 20) {
-      loginError.textContent = 'Los campos no pueden exceder el límite de caracteres.';
-      return;
-    }
-    if (!validateEmail(email)) {
-      loginError.textContent = 'Ingresa un correo válido.';
-      return;
-    }
+      const email = loginEmailEl.value.trim();
+      const password = loginPasswordEl.value.trim();
 
-    try {
-      const data = await postJson('/api/auth/login', { email, password });
-      loginSuccess.textContent = data.message;
-        window.location.href = '/dashboard';
-    } catch (error) {
-      loginError.textContent = error.message;
-    }
-  });
-}
+      if (!email || !password) {
+        loginErrorEl.textContent = 'Completa todos los campos para iniciar sesión.';
+        return;
+      }
+      if (email.length > 50 || password.length > 20) {
+        loginErrorEl.textContent = 'Los campos no pueden exceder el límite de caracteres.';
+        return;
+      }
+      if (!validateEmail(email)) {
+        loginErrorEl.textContent = 'Ingresa un correo válido.';
+        return;
+      }
 
-if (signupForm) {
-  signupForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    signupError.textContent = '';
-    signupSuccess.textContent = '';
+      try {
+        const data = await postJson('/api/auth/login', { email, password });
+        loginSuccessEl.textContent = data.message;
+        window.location.href = '/';
+      } catch (error) {
+        loginErrorEl.textContent = error.message;
+      }
+    });
+  }
 
-    const name = signupName.value.trim();
-    const email = signupEmail.value.trim();
-    const password = signupPassword.value.trim();
-    const confirm = signupConfirm.value.trim();
+  const signupFormEl = document.getElementById('signupForm');
+  const signupNameEl = document.getElementById('signupName');
+  const signupEmailEl = document.getElementById('signupEmail');
+  const signupPasswordEl = document.getElementById('signupPassword');
+  const signupConfirmEl = document.getElementById('signupConfirm');
+  const signupErrorEl = document.getElementById('signupError');
+  const signupSuccessEl = document.getElementById('signupSuccess');
 
-    if (!name || !email || !password || !confirm) {
-      signupError.textContent = 'Llena todos los campos para crear la cuenta.';
-      return;
-    }
-    if (name.length > 50 || email.length > 50 || password.length > 20 || confirm.length > 20) {
-      signupError.textContent = 'Los campos exceden el máximo de caracteres permitidos.';
-      return;
-    }
-    if (!validateEmail(email)) {
-      signupError.textContent = 'Ingresa un correo válido.';
-      return;
-    }
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      signupError.textContent = passwordError;
-      return;
-    }
-    if (password !== confirm) {
-      signupError.textContent = 'Las contraseñas no coinciden.';
-      return;
-    }
+  if (signupFormEl) {
+    signupFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      signupErrorEl.textContent = '';
+      signupSuccessEl.textContent = '';
 
-    try {
-      const data = await postJson('/api/auth/signup', { name, email, password, confirm });
-      signupSuccess.textContent = data.message;
-      window.location.href = '/login';
-    } catch (error) {
-      signupError.textContent = error.message;
-    }
-  });
-}
+      const name = signupNameEl.value.trim();
+      const email = signupEmailEl.value.trim();
+      const password = signupPasswordEl.value.trim();
+      const confirm = signupConfirmEl.value.trim();
+
+      if (!name || !email || !password || !confirm) {
+        signupErrorEl.textContent = 'Llena todos los campos para crear la cuenta.';
+        return;
+      }
+      if (name.length > 50 || email.length > 50 || password.length > 20 || confirm.length > 20) {
+        signupErrorEl.textContent = 'Los campos exceden el máximo de caracteres permitidos.';
+        return;
+      }
+      if (!validateEmail(email)) {
+        signupErrorEl.textContent = 'Ingresa un correo válido.';
+        return;
+      }
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        signupErrorEl.textContent = passwordError;
+        return;
+      }
+      if (password !== confirm) {
+        signupErrorEl.textContent = 'Las contraseñas no coinciden.';
+        return;
+      }
+
+      try {
+        const data = await postJson('/api/auth/signup', { name, email, password, confirm });
+        signupSuccessEl.textContent = data.message;
+        window.location.href = '/login';
+      } catch (error) {
+        signupErrorEl.textContent = error.message;
+      }
+    });
+  }
+});
